@@ -1,0 +1,105 @@
+version: "3.8" # https://docs.docker.com/compose/compose-file/compose-file-v3/
+services:
+  nginx:
+    image: nginx:alpine
+    # https://hub.docker.com/_/nginx
+    volumes:
+      - static:/var/www/netbox/static
+      - media:/var/www/netbox/media
+    configs:
+      - source: netbox_nginx.conf
+        target: /etc/nginx/templates/nginx.conf.template
+    networks:
+      - traefik
+      - nginx
+    environment:
+      # Required by NGINX
+      - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx
+      # https://nginx.org/en/docs/ngx_core_module.html#worker_processes
+      - NGINX_WORKER_PROCESSES=auto
+      # https://nginx.org/en/docs/ngx_core_module.html#worker_rlimit_nofile
+      - NGINX_WORKER_RLIMIT_NOFILE=65535
+      # https://nginx.org/en/docs/ngx_core_module.html#worker_connections
+      - NGINX_WORKER_CONNECTIONS=65535
+      # https://nginx.org/en/docs/http/ngx_http_core_module.html#keepalive_timeout
+      - NGINX_KEEPALIVE_TIMEOUT=60s
+      # https://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size
+      - NGINX_CLIENT_MAX_BODY_SIZE=10m
+      # https://nginx.org/en/docs/http/ngx_http_core_module.html#client_body_timeout
+      - NGINX_CLIENT_BODY_TIMEOUT=30s
+      # https://nginx.org/en/docs/http/server_names.html
+      - NGINX_HOST=netbox.yourdomain.test
+    deploy:
+      labels:
+        # Essential traefik labels https://doc.traefik.io/traefik/providers/docker/
+        - "traefik.enable=true"
+        - "traefik.http.routers.netbox.entrypoints=websecure"
+        - "traefik.http.routers.netbox.rule=Host(`netbox.yourdomain.test`)"
+        - "traefik.http.services.netbox.loadbalancer.server.port=80" # Port traefik needs to route traffic to
+
+  netbox:
+    image: zeigren/netbox:latest # https://docs.docker.com/compose/compose-file/compose-file-v3/#image
+    # https://hub.docker.com/r/zeigren/netbox
+    # https://github.com/netbox-community/netbox
+    # https://netbox.readthedocs.io/en/stable/
+    volumes: # https://docs.docker.com/compose/compose-file/compose-file-v3/#volumes
+      - static:/usr/src/app/netbox/static
+      - media:/usr/src/media
+    secrets: # https://docs.docker.com/compose/compose-file/compose-file-v3/#secrets
+      - netbox_db_password
+      - netbox_secret_key
+    networks: # https://docs.docker.com/compose/compose-file/compose-file-v3/#networks
+      - nginx
+      - netbox
+    environment: # https://docs.docker.com/compose/compose-file/compose-file-v3/#environment
+      - DATABASE_PASSWORD=DOCKER-SECRET->netbox_db_password
+      - ALLOWED_HOSTS=netbox.yourdomain.test
+      #- SECRET_KEY=DOCKER-SECRET->netbox_secret_key
+      - GUNICORN_WORKERS=2
+      - TIME_ZONE=America/Los_Angeles
+      # CREATE SUPERUSER ONCE THEN DELETE THESE
+      # - CREATE_SUPERUSER=True
+      # - DJANGO_SUPERUSER_USERNAME=admin
+      # - DJANGO_SUPERUSER_EMAIL=admin@admin.com
+      # - DJANGO_SUPERUSER_PASSWORD=admin
+
+  postgres:
+    image: postgres:alpine
+    # https://hub.docker.com/_/postgres
+    volumes:
+      - netbox_db:/var/lib/postgresql/data
+    secrets:
+      - netbox_db_password
+    networks:
+      - netbox
+    environment:
+      - POSTGRES_PASSWORD_FILE=/run/secrets/netbox_db_password
+      - POSTGRES_USER=netbox
+      - POSTGRES_DB=netbox
+
+  redis:
+    image: redis:alpine
+    # https://hub.docker.com/_/redis
+    networks:
+      - netbox
+
+volumes: # https://docs.docker.com/compose/compose-file/compose-file-v3/#volume-configuration-reference
+  static:
+  media:
+  netbox_db:
+
+configs: # https://docs.docker.com/compose/compose-file/compose-file-v3/#configs-configuration-reference
+  netbox_nginx.conf:
+    external: true
+
+secrets: # https://docs.docker.com/compose/compose-file/compose-file-v3/#secrets-configuration-reference
+  netbox_db_password:
+    external: true
+  netbox_secret_key:
+    external: true
+
+networks: # https://docs.docker.com/compose/compose-file/compose-file-v3/#network-configuration-reference
+  nginx:
+  netbox:
+  traefik:
+    external: true
