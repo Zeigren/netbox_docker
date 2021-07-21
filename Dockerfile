@@ -1,8 +1,9 @@
 ARG VERSION
+ARG DATE
 
 FROM python:alpine AS build
 
-ARG VERSION=v2.11.9
+ARG VERSION
 
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
@@ -23,6 +24,16 @@ RUN git clone --branch ${VERSION} --depth 1 ${APP_REPO} ${APP_ROOT} \
 
 
 FROM python:alpine AS production
+
+ARG VERSION
+ARG DATE
+
+LABEL org.opencontainers.image.created=$DATE \
+    org.opencontainers.image.authors="Zeigren" \
+    org.opencontainers.image.url="https://github.com/Zeigren/netbox_docker" \
+    org.opencontainers.image.source="https://github.com/Zeigren/netbox_docker" \
+    org.opencontainers.image.version=$VERSION \
+    org.opencontainers.image.title="zeigren/netbox"
 
 ENV PYTHONUNBUFFERED 1
 ENV APP_ROOT="/usr/src/app"

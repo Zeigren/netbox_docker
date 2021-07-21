@@ -6,11 +6,7 @@ set -e
 
 # Generate new secret if none is provided
 if [ -z "${SECRET_KEY}" ]; then
-    echo "Please re-run this container with an environment variable SECRET_KEY"
-    rand=$(tr </dev/urandom -cd 'a-zA-Z0-9' | head -c 50)
-    echo "An example SECRET_KEY you could use is:"
-    echo "$rand"
-    exit
+    SECRET_KEY=$(tr </dev/urandom -cd 'a-zA-Z0-9' | head -c 50)
 fi
 
 echo "creating configuration.py"

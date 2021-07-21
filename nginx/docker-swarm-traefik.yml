@@ -1,21 +1,34 @@
 version: "3.8" # https://docs.docker.com/compose/compose-file/compose-file-v3/
 services:
-  caddy:
-    image: caddy:latest
-    # https://hub.docker.com/_/caddy
+  nginx:
+    image: nginx:alpine
+    # https://hub.docker.com/_/nginx
     volumes:
       - static:/var/www/netbox/static
       - media:/var/www/netbox/media
-      - caddy_data:/data
-    networks:
-      - caddy
-      - traefik
     configs:
-      - source: netbox_caddyfile
-        target: /etc/caddy/Caddyfile
+      - source: netbox_nginx.conf
+        target: /etc/nginx/templates/nginx.conf.template
+    networks:
+      - traefik
+      - nginx
     environment:
-      # https://caddyserver.com/docs/automatic-https#overview
-      - DOMAIN=:80
+      # Required by NGINX
+      - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx
+      # https://nginx.org/en/docs/ngx_core_module.html#worker_processes
+      - NGINX_WORKER_PROCESSES=auto
+      # https://nginx.org/en/docs/ngx_core_module.html#worker_rlimit_nofile
+      - NGINX_WORKER_RLIMIT_NOFILE=65535
+      # https://nginx.org/en/docs/ngx_core_module.html#worker_connections
+      - NGINX_WORKER_CONNECTIONS=65535
+      # https://nginx.org/en/docs/http/ngx_http_core_module.html#keepalive_timeout
+      - NGINX_KEEPALIVE_TIMEOUT=60s
+      # https://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size
+      - NGINX_CLIENT_MAX_BODY_SIZE=10m
+      # https://nginx.org/en/docs/http/ngx_http_core_module.html#client_body_timeout
+      - NGINX_CLIENT_BODY_TIMEOUT=30s
+      # https://nginx.org/en/docs/http/server_names.html
+      - NGINX_HOST=netbox.yourdomain.test
     deploy:
       labels:
         # Essential traefik labels https://doc.traefik.io/traefik/providers/docker/
@@ -35,7 +48,7 @@ services:
     secrets: # https://docs.docker.com/compose/compose-file/compose-file-v3/#secrets
       - netbox_db_password
     networks: # https://docs.docker.com/compose/compose-file/compose-file-v3/#networks
-      - caddy
+      - nginx
       - netbox
     environment: # https://docs.docker.com/compose/compose-file/compose-file-v3/#environment
       - DATABASE_PASSWORD=DOCKER-SECRET->netbox_db_password
@@ -69,11 +82,10 @@ services:
 volumes: # https://docs.docker.com/compose/compose-file/compose-file-v3/#volume-configuration-reference
   static:
   media:
-  caddy_data:
   netbox_db:
 
 configs: # https://docs.docker.com/compose/compose-file/compose-file-v3/#configs-configuration-reference
-  netbox_caddyfile:
+  netbox_nginx.conf:
     external: true
 
 secrets: # https://docs.docker.com/compose/compose-file/compose-file-v3/#secrets-configuration-reference
@@ -81,7 +93,7 @@ secrets: # https://docs.docker.com/compose/compose-file/compose-file-v3/#secrets
     external: true
 
 networks: # https://docs.docker.com/compose/compose-file/compose-file-v3/#network-configuration-reference
-  caddy:
+  nginx:
   netbox:
   traefik:
     external: true

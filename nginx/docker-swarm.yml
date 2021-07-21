@@ -1,28 +1,48 @@
-version: "3.8" # https://docs.docker.com/compose/compose-file/compose-file-v3/
+version: "3.8"
+# https://docs.docker.com/compose/compose-file/compose-file-v3/
 services:
-  caddy:
-    image: caddy:latest
-    # https://hub.docker.com/_/caddy
+  nginx:
+    image: nginx:alpine
+    # https://hub.docker.com/_/nginx
     volumes:
       - static:/var/www/netbox/static
       - media:/var/www/netbox/media
-      - caddy_data:/data
-    networks:
-      - caddy
-      - traefik
     configs:
-      - source: netbox_caddyfile
-        target: /etc/caddy/Caddyfile
+      - source: netbox_nginx.conf
+        target: /etc/nginx/templates/nginx.conf.template
+    networks:
+      - nginx
+    ports:
+      # CHANGE TO "80:80" IF USING NGINX FOR SSL TERMINATION
+      - "9080:80"
+      # UNCOMMENT IF USING NGINX FOR SSL TERMINATION
+      # - "443:443"
     environment:
-      # https://caddyserver.com/docs/automatic-https#overview
-      - DOMAIN=:80
-    deploy:
-      labels:
-        # Essential traefik labels https://doc.traefik.io/traefik/providers/docker/
-        - "traefik.enable=true"
-        - "traefik.http.routers.netbox.entrypoints=websecure"
-        - "traefik.http.routers.netbox.rule=Host(`netbox.yourdomain.test`)"
-        - "traefik.http.services.netbox.loadbalancer.server.port=80" # Port traefik needs to route traffic to
+      # Required by NGINX
+      - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx
+      # https://nginx.org/en/docs/ngx_core_module.html#worker_processes
+      - NGINX_WORKER_PROCESSES=auto
+      # https://nginx.org/en/docs/ngx_core_module.html#worker_rlimit_nofile
+      - NGINX_WORKER_RLIMIT_NOFILE=65535
+      # https://nginx.org/en/docs/ngx_core_module.html#worker_connections
+      - NGINX_WORKER_CONNECTIONS=65535
+      # https://nginx.org/en/docs/http/ngx_http_core_module.html#keepalive_timeout
+      - NGINX_KEEPALIVE_TIMEOUT=60s
+      # https://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size
+      - NGINX_CLIENT_MAX_BODY_SIZE=10m
+      # https://nginx.org/en/docs/http/ngx_http_core_module.html#client_body_timeout
+      - NGINX_CLIENT_BODY_TIMEOUT=30s
+      # https://nginx.org/en/docs/http/server_names.html
+      - NGINX_HOST=netbox.yourdomain.test
+      # UNCOMMENT IF USING NGINX FOR SSL
+      # - NGINX_SSL_CERT=yourdomain.test.crt
+      # - NGINX_SSL_KEY=yourdomain.test.key
+    # UNCOMMENT IF USING NGINX FOR SSL TERMINATION
+    # secrets:
+    #   - source: yourdomain.test.crt
+    #     target: /etc/nginx/certs/yourdomain.test.crt
+    #   - source: yourdomain.test.key
+    #     target: /etc/nginx/certs/yourdomain.test.key
 
   netbox:
     image: zeigren/netbox:latest # ghcr.io/zeigren/netbox_docker:latest
@@ -35,7 +55,7 @@ services:
     secrets: # https://docs.docker.com/compose/compose-file/compose-file-v3/#secrets
       - netbox_db_password
     networks: # https://docs.docker.com/compose/compose-file/compose-file-v3/#networks
-      - caddy
+      - nginx
       - netbox
     environment: # https://docs.docker.com/compose/compose-file/compose-file-v3/#environment
       - DATABASE_PASSWORD=DOCKER-SECRET->netbox_db_password
@@ -69,19 +89,21 @@ services:
 volumes: # https://docs.docker.com/compose/compose-file/compose-file-v3/#volume-configuration-reference
   static:
   media:
-  caddy_data:
   netbox_db:
 
 configs: # https://docs.docker.com/compose/compose-file/compose-file-v3/#configs-configuration-reference
-  netbox_caddyfile:
+  netbox_nginx.conf:
     external: true
 
 secrets: # https://docs.docker.com/compose/compose-file/compose-file-v3/#secrets-configuration-reference
   netbox_db_password:
     external: true
+# UNCOMMENT IF USING NGINX FOR SSL TERMINATION
+# yourdomain.test.crt:
+#   external: true
+# yourdomain.test.key:
+#   external: true
 
 networks: # https://docs.docker.com/compose/compose-file/compose-file-v3/#network-configuration-reference
-  caddy:
+  nginx:
   netbox:
-  traefik:
-    external: true

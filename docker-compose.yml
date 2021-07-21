@@ -1,4 +1,5 @@
-version: "3.8" # https://docs.docker.com/compose/compose-file/compose-file-v3/
+version: "3.7"
+# https://docs.docker.com/compose/compose-file/compose-file-v3/
 services:
   caddy:
     image: caddy:latest
@@ -7,22 +8,17 @@ services:
       - static:/var/www/netbox/static
       - media:/var/www/netbox/media
       - caddy_data:/data
+      - ./netbox_caddyfile:/etc/caddy/Caddyfile
     networks:
       - caddy
-      - traefik
-    configs:
-      - source: netbox_caddyfile
-        target: /etc/caddy/Caddyfile
+    ports:
+      # CHANGE TO "80:80" IF USING CADDY FOR HTTPS
+      - "9080:80"
+      # UNCOMMENT IF USING CADDY FOR HTTPS
+      # - "443:443"
     environment:
       # https://caddyserver.com/docs/automatic-https#overview
       - DOMAIN=:80
-    deploy:
-      labels:
-        # Essential traefik labels https://doc.traefik.io/traefik/providers/docker/
-        - "traefik.enable=true"
-        - "traefik.http.routers.netbox.entrypoints=websecure"
-        - "traefik.http.routers.netbox.rule=Host(`netbox.yourdomain.test`)"
-        - "traefik.http.services.netbox.loadbalancer.server.port=80" # Port traefik needs to route traffic to
 
   netbox:
     image: zeigren/netbox:latest # ghcr.io/zeigren/netbox_docker:latest
@@ -32,13 +28,11 @@ services:
     volumes: # https://docs.docker.com/compose/compose-file/compose-file-v3/#volumes
       - static:/usr/src/app/netbox/static
       - media:/usr/src/media
-    secrets: # https://docs.docker.com/compose/compose-file/compose-file-v3/#secrets
-      - netbox_db_password
     networks: # https://docs.docker.com/compose/compose-file/compose-file-v3/#networks
       - caddy
       - netbox
     environment: # https://docs.docker.com/compose/compose-file/compose-file-v3/#environment
-      - DATABASE_PASSWORD=DOCKER-SECRET->netbox_db_password
+      - DATABASE_PASSWORD=CHANGEME
       - ALLOWED_HOSTS=netbox.yourdomain.test
       # CREATE SUPERUSER ONCE THEN DELETE THESE
       # - CREATE_SUPERUSER=True
@@ -56,7 +50,7 @@ services:
     networks:
       - netbox
     environment:
-      - POSTGRES_PASSWORD_FILE=/run/secrets/netbox_db_password
+      - POSTGRES_PASSWORD=CHANGEME
       - POSTGRES_USER=netbox
       - POSTGRES_DB=netbox
 
@@ -72,16 +66,6 @@ volumes: # https://docs.docker.com/compose/compose-file/compose-file-v3/#volume-
   caddy_data:
   netbox_db:
 
-configs: # https://docs.docker.com/compose/compose-file/compose-file-v3/#configs-configuration-reference
-  netbox_caddyfile:
-    external: true
-
-secrets: # https://docs.docker.com/compose/compose-file/compose-file-v3/#secrets-configuration-reference
-  netbox_db_password:
-    external: true
-
 networks: # https://docs.docker.com/compose/compose-file/compose-file-v3/#network-configuration-reference
   caddy:
   netbox:
-  traefik:
-    external: true

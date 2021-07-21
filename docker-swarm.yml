@@ -9,20 +9,15 @@ services:
       - caddy_data:/data
     networks:
       - caddy
-      - traefik
+    ports:
+      - "80:80"
+      - "443:443"
     configs:
       - source: netbox_caddyfile
         target: /etc/caddy/Caddyfile
     environment:
       # https://caddyserver.com/docs/automatic-https#overview
-      - DOMAIN=:80
-    deploy:
-      labels:
-        # Essential traefik labels https://doc.traefik.io/traefik/providers/docker/
-        - "traefik.enable=true"
-        - "traefik.http.routers.netbox.entrypoints=websecure"
-        - "traefik.http.routers.netbox.rule=Host(`netbox.yourdomain.test`)"
-        - "traefik.http.services.netbox.loadbalancer.server.port=80" # Port traefik needs to route traffic to
+      - DOMAIN=netbox.yourdomain.test
 
   netbox:
     image: zeigren/netbox:latest # ghcr.io/zeigren/netbox_docker:latest
@@ -83,5 +78,3 @@ secrets: # https://docs.docker.com/compose/compose-file/compose-file-v3/#secrets
 networks: # https://docs.docker.com/compose/compose-file/compose-file-v3/#network-configuration-reference
   caddy:
   netbox:
-  traefik:
-    external: true
