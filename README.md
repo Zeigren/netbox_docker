@@ -14,6 +14,7 @@
 ## Tags
 
 - latest
+- v2.11.10
 - v2.11.9
 
 ## Stack
@@ -39,7 +40,7 @@ If Caddy doesn't work for you or you are chasing performance then checkout the N
 
 ## Configuration
 
-Configuration consists of setting environment variables in the `.yml` files. More environment variables for configuring [netbox](https://netbox.readthedocs.io/en/stable/configuration/) can be found in `docker-entrypoint.sh` and for Caddy in `bookstack_caddyfile`.
+Configuration consists of setting environment variables in the `.yml` files. More environment variables for configuring [netbox](https://netbox.readthedocs.io/en/stable/configuration/) can be found in `docker-entrypoint.sh` and for Caddy in `netbox_caddyfile`.
 
 Setting the `DOMAIN` variable changes whether Caddy uses HTTP, HTTPS with a self signed certificate, or HTTPS with a certificate from Let's Encrypt or ZeroSSL. Check the Caddy [documentation](https://caddyserver.com/docs/automatic-https) for more info.
 
