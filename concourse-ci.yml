@@ -22,7 +22,6 @@ resources:
       repository: ghcr.io/zeigren/netbox_docker
       username: Zeigren
       password: ((github_token.token))
-      tag: latest
 
   - name: dockerhub-image
     type: registry-image
@@ -33,7 +32,6 @@ resources:
       repository: zeigren/netbox
       username: zeigren
       password: ((dockerhub_password.password))
-      tag: latest
 
 # https://concourse-ci.org/jobs.html
 jobs:
@@ -66,12 +64,39 @@ jobs:
             BUILD_ARG_DATE: ((.:commit-date))
           run:
             path: build
+      - task: build-docker-image-nextbox
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: concourse/oci-build-task
+          inputs:
+            - name: git-repo
+              path: .
+          outputs:
+            - name: nextboximage
+          params:
+            BUILD_ARG_VERSION: ((.:version-tag))
+            BUILD_ARG_DATE: ((.:commit-date))
+            BUILD_ARG_NEXTBOX: True
+          run:
+            path: build
       - in_parallel:
           - put: github-image
             params:
               image: image/image.tar
-              additional_tags: git-repo/version
+              additional_tags: git-repo/tags_version
           - put: dockerhub-image
             params:
               image: image/image.tar
-              additional_tags: git-repo/version
+              additional_tags: git-repo/tags_version
+          - put: github-image
+            params:
+              image: nextboximage/image.tar
+              additional_tags: git-repo/tags_nextbox
+          - put: dockerhub-image
+            params:
+              image: nextboximage/image.tar
+              additional_tags: git-repo/tags_nextbox

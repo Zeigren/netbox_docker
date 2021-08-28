@@ -9,8 +9,11 @@ if [ -z "${SECRET_KEY}" ]; then
     SECRET_KEY=$(tr </dev/urandom -cd 'a-zA-Z0-9' | head -c 50)
 fi
 
-echo "creating configuration.py"
-cat >"$APP_HOME/netbox/configuration.py" <<EOF
+if [ ! -f "$APP_HOME/netbox/configuration.py" ]; then
+    echo "creating configuration.py"
+    cat >"$APP_HOME/netbox/configuration.py" <<EOF
+
+from os import getenv
 
 ALLOWED_HOSTS = ['${ALLOWED_HOSTS:-netbox.yourdomain.test}']
 
@@ -95,9 +98,11 @@ INTERNAL_IPS = ('127.0.0.1', '::1')
 
 LOGGING = {}
 
+LOGIN_PERSISTENCE = ${LOGIN_PERSISTENCE:-False}
+
 LOGIN_REQUIRED = ${LOGIN_REQUIRED:-False}
 
-LOGIN_TIMEOUT = None
+LOGIN_TIMEOUT = ${LOGIN_TIMEOUT:-None}
 
 MAINTENANCE_MODE = ${MAINTENANCE_MODE:-False}
 
@@ -118,7 +123,12 @@ NAPALM_ARGS = {}
 
 PAGINATE_COUNT = ${PAGINATE_COUNT:-50}
 
-PLUGINS = []
+if getenv('NEXTBOX'):
+  PLUGINS = [
+    'nextbox_ui_plugin',
+    ]
+else:
+  PLUGINS = []
 
 PREFER_IPV4 = ${PREFER_IPV4:-False}
 
@@ -151,10 +161,12 @@ SHORT_TIME_FORMAT = 'H:i:s'
 DATETIME_FORMAT = 'N j, Y g:i a'
 SHORT_DATETIME_FORMAT = 'Y-m-d H:i'
 EOF
+fi
 
-echo "Creating gunicorn.conf.py"
-# https://docs.gunicorn.org/en/stable/configure.html
-cat >"$APP_HOME/gunicorn.conf.py" <<EOF
+if [ ! -f "$APP_HOME/gunicorn.conf.py" ]; then
+    echo "Creating gunicorn.conf.py"
+    # https://docs.gunicorn.org/en/stable/configure.html
+    cat >"$APP_HOME/gunicorn.conf.py" <<EOF
 import multiprocessing
 
 bind = "0.0.0.0:8000"
@@ -165,6 +177,7 @@ timeout = 120
 max_requests = 1000
 max_requests_jitter = 50
 EOF
+fi
 
 echo "Running database migrations and collecting static files"
 python manage.py migrate --noinput

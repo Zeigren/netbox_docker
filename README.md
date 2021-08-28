@@ -1,4 +1,4 @@
-# Docker Stack For [netbox](https://github.com/netbox-community/netbox)
+# Docker Stack For [NetBox](https://github.com/netbox-community/netbox)
 
 ![Docker Image Size (latest)](https://img.shields.io/docker/image-size/zeigren/netbox/latest)
 ![Docker Pulls](https://img.shields.io/docker/pulls/zeigren/netbox)
@@ -13,13 +13,14 @@
 
 ## Tags
 
-- latest
+- latest, latest-nextbox
+- v2.11.12, v2.11.12-nextbox
 - v2.11.10
 - v2.11.9
 
 ## Stack
 
-- Python:Alpine - netbox
+- Python:Alpine - NetBox
 - Caddy or NGINX - web server
 - Postgres:Alpine - database
 - Redis:Alpine - cache
@@ -29,6 +30,8 @@
 Use [Docker Compose](https://docs.docker.com/compose/) or [Docker Swarm](https://docs.docker.com/engine/swarm/) to deploy. Containers are available from both Docker Hub and the GitHub Container Registry.
 
 There are examples for using either [Caddy](https://caddyserver.com/) or [NGINX](https://www.nginx.com/) as the web server and examples for using Caddy, NGINX, or [Traefik](https://traefik.io/traefik/) for HTTPS (the Traefik example also includes using it as a reverse proxy). The NGINX examples are in the nginx folder.
+
+The images that end in `-nextbox` have the [nextbox-ui-plugin](https://github.com/iDebugAll/nextbox-ui-plugin) installed.
 
 ## Recommendations
 
@@ -40,7 +43,7 @@ If Caddy doesn't work for you or you are chasing performance then checkout the N
 
 ## Configuration
 
-Configuration consists of setting environment variables in the `.yml` files. More environment variables for configuring [netbox](https://netbox.readthedocs.io/en/stable/configuration/) can be found in `docker-entrypoint.sh` and for Caddy in `netbox_caddyfile`.
+Configuration consists of setting environment variables in the `.yml` files. More environment variables for configuring [NetBox](https://netbox.readthedocs.io/en/stable/configuration/) can be found in `docker-entrypoint.sh` and for Caddy in `netbox_caddyfile`.
 
 Setting the `DOMAIN` variable changes whether Caddy uses HTTP, HTTPS with a self signed certificate, or HTTPS with a certificate from Let's Encrypt or ZeroSSL. Check the Caddy [documentation](https://caddyserver.com/docs/automatic-https) for more info.
 
@@ -52,7 +55,7 @@ I personally use this with [Traefik](https://traefik.io/) as a reverse proxy, I'
 
 You'll need to create the appropriate [Docker Secrets](https://docs.docker.com/engine/swarm/secrets/) and [Docker Configs](https://docs.docker.com/engine/swarm/configs/).
 
-Any environment variables for netbox in `docker-entrypoint.sh` can instead be set using Docker Secrets, there's an example of how to do this in the relevant `.yml` files.
+Any environment variables for NetBox in `docker-entrypoint.sh` can instead be set using Docker Secrets, there's an example of how to do this in the relevant `.yml` files.
 
 Run with `docker stack deploy --compose-file docker-swarm.yml netbox`
 
@@ -68,7 +71,7 @@ The number of [workers](https://docs.gunicorn.org/en/stable/settings.html#worker
 
 ## Theory of operation
 
-The [Dockerfile](https://docs.docker.com/engine/reference/builder/) uses [multi-stage builds](https://docs.docker.com/develop/develop-images/multistage-build/) creating a build container that has all the dependencies for the python packages which are installed into a [python virtual environment](https://docs.python.org/3/tutorial/venv.html). The production container copies the python virtual environment from the build container and runs netbox from there, this allows it to be much more lightweight.
+The [Dockerfile](https://docs.docker.com/engine/reference/builder/) uses [multi-stage builds](https://docs.docker.com/develop/develop-images/multistage-build/) creating a build container that has all the dependencies for the python packages which are installed into a [python virtual environment](https://docs.python.org/3/tutorial/venv.html). The production container copies the python virtual environment from the build container and runs NetBox from there, this allows it to be much more lightweight.
 
 On startup, the container first runs the `docker-entrypoint.sh` script before running `gunicorn`.
 

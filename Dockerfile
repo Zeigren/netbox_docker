@@ -1,9 +1,11 @@
 ARG VERSION
 ARG DATE
+ARG NEXTBOX
 
 FROM python:alpine AS build
 
 ARG VERSION
+ARG NEXTBOX
 
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
@@ -20,13 +22,16 @@ RUN apk add --no-cache \
 RUN git clone --branch ${VERSION} --depth 1 ${APP_REPO} ${APP_ROOT} \
     && python -m venv $VIRTUAL_ENV \
     && pip install --upgrade pip setuptools wheel \
-    && pip install --no-cache-dir -U -r /usr/src/app/requirements.txt
+    && pip install --no-cache-dir -U -r /usr/src/app/requirements.txt \
+    && if [ $NEXTBOX = True ]; \
+    then pip install --no-cache-dir nextbox-ui-plugin ; fi
 
 
 FROM python:alpine AS production
 
 ARG VERSION
 ARG DATE
+ARG NEXTBOX
 
 LABEL org.opencontainers.image.created=$DATE \
     org.opencontainers.image.authors="Zeigren" \
@@ -40,6 +45,7 @@ ENV APP_ROOT="/usr/src/app"
 ENV APP_HOME="/usr/src/app/netbox"
 ENV VIRTUAL_ENV="/opt/venv"
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+ENV NEXTBOX=$NEXTBOX
 
 COPY --from=build $VIRTUAL_ENV $VIRTUAL_ENV
 COPY --from=build $APP_ROOT $APP_ROOT
