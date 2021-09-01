@@ -1,13 +1,12 @@
 # https://materialdesignicons.com/
 # https://concourse-ci.org/resources.html
-# fly -t kairohm set-pipeline --pipeline netbox --config .\concourse-ci.yml
+# fly -t kairohm set-pipeline --pipeline netbox --config .\ci\concourse-ci.yml
 resources:
   # https://github.com/concourse/git-resource
   - name: git-repo
     type: git
     icon: git
     public: true
-    # check_every: 24h
     source:
       uri: https://github.com/Zeigren/netbox_docker.git
       branch: main
@@ -41,7 +40,7 @@ jobs:
       - get: git-repo
         trigger: true
       - load_var: version-tag
-        file: git-repo/version
+        file: git-repo/ci/version
       - load_var: commit-date
         file: git-repo/.git/commit_timestamp
       # https://concourse-ci.org/tasks.html
@@ -49,6 +48,8 @@ jobs:
         privileged: true
         config:
           platform: linux
+          caches:
+            - path: cache
           image_resource:
             type: registry-image
             source:
@@ -66,8 +67,11 @@ jobs:
             path: build
       - task: build-docker-image-nextbox
         privileged: true
+        output_mapping: {image: nextboximage}
         config:
           platform: linux
+          caches:
+            - path: cache
           image_resource:
             type: registry-image
             source:
@@ -76,27 +80,27 @@ jobs:
             - name: git-repo
               path: .
           outputs:
-            - name: nextboximage
+            - name: image
           params:
             BUILD_ARG_VERSION: ((.:version-tag))
             BUILD_ARG_DATE: ((.:commit-date))
-            BUILD_ARG_NEXTBOX: True
+            BUILD_ARG_NEXTBOX: true
           run:
             path: build
       - in_parallel:
           - put: github-image
             params:
               image: image/image.tar
-              additional_tags: git-repo/tags_version
+              additional_tags: git-repo/ci/tags
           - put: dockerhub-image
             params:
               image: image/image.tar
-              additional_tags: git-repo/tags_version
+              additional_tags: git-repo/ci/tags
           - put: github-image
             params:
               image: nextboximage/image.tar
-              additional_tags: git-repo/tags_nextbox
+              additional_tags: git-repo/ci/tags_nextbox
           - put: dockerhub-image
             params:
               image: nextboximage/image.tar
-              additional_tags: git-repo/tags_nextbox
+              additional_tags: git-repo/ci/tags_nextbox

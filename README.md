@@ -78,3 +78,9 @@ On startup, the container first runs the `docker-entrypoint.sh` script before ru
 `docker-entrypoint.sh` creates configuration files and runs commands based on environment variables that are declared in the various `.yml` files.
 
 `env_secrets_expand.sh` handles using Docker Secrets.
+
+## File Permissions
+
+If using docker volumes and the default user (`docker` with a UID and GID of `1000`) you shouldn't need to do anything. However if you run the container as a different [user](https://docs.docker.com/compose/compose-file/compose-file-v3/#domainname-hostname-ipc-mac_address-privileged-read_only-shm_size-stdin_open-tty-user-working_dir) or have any permissions issues you may need to change the permissions for `usr/src/app/netbox/static` and `/usr/src/media`.
+
+One way to change the permissions would be to the change the [entrypoint](https://docs.docker.com/compose/compose-file/compose-file-v3/#entrypoint) for the NetBox container in the `.yml` file to `entrypoint: sleep 900m` and attach to the container as `root` and run `chown -R docker:docker /usr/src/app/netbox/static /usr/src/media`, or instead of attaching to the container you could run `docker exec -it --user root NETBOX_CONTAINER /bin/sh -c "chown -R docker:docker /usr/src/app/netbox/static /usr/src/media"`

@@ -4,15 +4,44 @@
 
 set -e
 
-# Generate new secret if none is provided
+# Check folder permissions
+if [ $(whoami) = "docker" ]; then
+    if [ $(stat -c '%u%g' /usr/src/app/netbox/static) != 10001000 ]; then
+        echo "Please fix the permissions for /usr/src/app/netbox/static"
+        echo "Attach to the NetBox container as root and run:"
+        echo "chown -R docker:docker /usr/src/app/netbox/static"
+        if [ $(stat -c '%u%g' /usr/src/media) != 10001000 ]; then
+            echo "and"
+            echo "chown -R docker:docker /usr/src/media"
+        fi
+        echo "You can check the README for more info"
+        exit
+    fi
+
+    if [ $(stat -c '%u%g' /usr/src/media) != 10001000 ]; then
+        echo "Please fix the permissions for /usr/src/media"
+        echo "Attach to the NetBox container as root and run:"
+        echo "chown -R docker:docker /usr/src/media"
+        echo "You can check the README for more info"
+        exit
+    fi
+fi
+
+# Generate a new SECRET_KEY if none is provided
+# https://docs.djangoproject.com/en/3.2/ref/settings/#secret-key
+# Generating a new SECRET_KEY each time the container starts is fine
 if [ -z "${SECRET_KEY}" ]; then
     SECRET_KEY=$(tr </dev/urandom -cd 'a-zA-Z0-9' | head -c 50)
 fi
 
-if [ ! -f "$APP_HOME/netbox/configuration.py" ]; then
-    echo "creating configuration.py"
-    cat >"$APP_HOME/netbox/configuration.py" <<EOF
+# Create NetBox Configuration if none exists
+# https://netbox.readthedocs.io/en/stable/configuration/
+# https://docs.djangoproject.com/en/3.2/ref/settings/
+# -------------------------------------------------------------------------------
 
+if [ ! -f "$APP_HOME/netbox/configuration.py" ]; then
+    echo "Creating configuration.py"
+    cat >"$APP_HOME/netbox/configuration.py" <<EOF
 from os import getenv
 
 ALLOWED_HOSTS = ['${ALLOWED_HOSTS:-netbox.yourdomain.test}']
@@ -163,9 +192,12 @@ SHORT_DATETIME_FORMAT = 'Y-m-d H:i'
 EOF
 fi
 
+# Create Gunicorn Configuration if none exists
+# https://docs.gunicorn.org/en/stable/configure.html
+# -------------------------------------------------------------------------------
+
 if [ ! -f "$APP_HOME/gunicorn.conf.py" ]; then
     echo "Creating gunicorn.conf.py"
-    # https://docs.gunicorn.org/en/stable/configure.html
     cat >"$APP_HOME/gunicorn.conf.py" <<EOF
 import multiprocessing
 
@@ -179,10 +211,12 @@ max_requests_jitter = 50
 EOF
 fi
 
+# -------------------------------------------------------------------------------
+
 echo "Running database migrations and collecting static files"
 python manage.py migrate --noinput
 python manage.py trace_paths --no-input
-python manage.py collectstatic --noinput
+python manage.py collectstatic --noinput --clear
 python manage.py remove_stale_contenttypes --no-input
 python manage.py clearsessions
 python manage.py invalidate all
@@ -194,6 +228,6 @@ if [ "$CREATE_SUPERUSER" = "True" ]; then
 fi
 
 echo "Running rqworker"
-nohup python manage.py rqworker >/dev/null 2>&1 &
+nohup /opt/venv/bin/python manage.py rqworker >/dev/null 2>&1 &
 
 exec "$@"
